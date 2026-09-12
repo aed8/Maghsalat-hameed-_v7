@@ -11,11 +11,47 @@ function add(){let n=$("name").value.trim(),ph=$("phone").value.trim(),w=+$("wei
 function groups(){let z=new Map;orders.forEach(o=>{let k=pn(o.phone)||nn(o.name);if(!z.has(k))z.set(k,{name:o.name,phone:o.phone,a:[]});z.get(k).a.push(o)});return[...z.values()].map(c=>({...c,t:c.a.reduce((s,o)=>s+o.total,0),p:c.a.reduce((s,o)=>s+o.paid,0),d:c.a.reduce((s,o)=>s+o.balance,0)}))}
 function render(){let s=stats(),g=groups();$("customers").textContent=g.length;$("orders").textContent=orders.length;$("sales").textContent=m(s.s);$("due").textContent=m(s.d);$("range").textContent=`الفترة: ${di(s.w.s)} إلى ${di(s.w.e)}`;["rsales","rpaid","rdue"].forEach((x,i)=>$(x).textContent=m([s.s,s.p,s.d][i]));$("rcust").textContent=s.c;$("rorders").textContent=s.a.length;$("ravg").textContent=m(s.a.length?s.s/s.a.length:0);
 let cq=nn($("csearch").value);$("clist").innerHTML=g.filter(c=>!cq||nn(c.name).includes(cq)||pn(c.phone).includes(pn(cq))).map(c=>`<div class="customer"><b>${esc(c.name)}</b><br>${esc(c.phone)} — ${c.a.length} طلب<br>المبيعات: ${m(c.t)} | المدفوع: ${m(c.p)} | المتبقي: ${m(c.d)}</div>`).join("")||"<p>لا يوجد زبائن</p>";
-let q=nn($("search").value),f=$("filter").value;a=orders.filter(o=>(!q||(nn(o.name)+" "+pn(o.phone)+" "+o.id).includes(q))&&(f=="كل الطلبات"||(f=="غير مدفوع"?o.balance>0:o.status==f))).slice().reverse();$("rows").innerHTML=a.map(o=>`<tr><td>${o.id}</td><td>${esc(o.name)}</td><td>${esc(o.phone)}</td><td>${esc(o.type)}</td><td>${o.w}</td><td>${m(o.total)}</td><td>${m(o.paid)}</td><td><span class="badge ${o.balance<=0?"ok":"bad"}">${m(o.balance)}</span></td><td>${esc(o.status)}</td><td><button onclick="pay(${o.id})">💵 دفع</button> <button class="gray" onclick="receipt(${o.id})">🧾</button> <button class="gray" onclick="del(${o.id})">حذف</button></td></tr>`).join("")||`<tr><td colspan="10">لا توجد طلبات</td></tr>`}
+let q=nn($("search").value),f=$("filter").value;a=orders.filter(o=>(!q||(nn(o.name)+" "+pn(o.phone)+" "+o.id).includes(q))&&(f=="كل الطلبات"||(f=="غير مدفوع"?o.balance>0:o.status==f))).slice().reverse();$("rows").innerHTML=a.map(o=>`<tr><td>${o.id}</td><td>${esc(o.name)}</td><td>${esc(o.phone)}</td><td>${esc(o.type)}</td><td>${o.w}</td><td>${m(o.total)}</td><td>${m(o.paid)}</td><td><span class="badge ${o.balance<=0?"ok":"bad"}">${m(o.balance)}</span></td><td>${esc(o.status)}</td><td><button onclick="pay(${o.id})">💵 دفع</button> <button class="gray" onclick="receipt(${o.id})">🧾 فاتورة</button> <button onclick="sendWhatsApp(${o.id})">🟢 واتساب</button> <button class="gray" onclick="shareOrder(${o.id})">📲 إرسال</button> <button class="gray" onclick="del(${o.id})">حذف</button></td></tr>`).join("")||`<tr><td colspan="10">لا توجد طلبات</td></tr>`}
 function pay(id){let o=orders.find(x=>x.id==id),n=prompt("المتبقي: "+m(o.balance)+" — أدخل المبلغ المدفوع");if(n!==null){o.paid=Math.min(o.total,o.paid+Math.max(0,+n||0));o.balance=o.total-o.paid;save();render()}}
 function del(id){if(confirm("حذف الطلب؟")){orders=orders.filter(o=>o.id!=id);save();render()}}
+function messageFor(o){return `🧺 مغسلة حميد\nأهلاً ${o.name}، تم تسجيل طلب الغسيل رقم ${o.id}.\nالنوع: ${o.type}\nالوزن: ${o.w} كغ\nالإجمالي: ${m(o.total)}\nالمدفوع: ${m(o.paid)}\nالمتبقي: ${m(o.balance)}\nموعد التسليم: ${o.due ? new Date(o.due).toLocaleString("ar") : "غير محدد"}\nشكرًا لثقتكم بنا 🌷`}
+function sendWhatsApp(id){let o=orders.find(x=>x.id==id);if(!o)return;let p=pn(o.phone);if(!p)return alert("لا يوجد رقم هاتف للزبون.");p=p.startsWith("0")?"972"+p.slice(1):p;window.open("https://wa.me/"+p+"?text="+encodeURIComponent(messageFor(o)),"_blank")}
+async function shareOrder(id){let o=orders.find(x=>x.id==id);if(!o)return;let t=messageFor(o);if(navigator.share){try{await navigator.share({title:"فاتورة مغسلة حميد",text:t})}catch(e){}}else{try{await navigator.clipboard.writeText(t);toast("تم نسخ الرسالة ✅")}catch(e){prompt("انسخ الرسالة:",t)}}}
 function receipt(id){let o=orders.find(x=>x.id==id),w=window.open("","_blank");if(!w)return;w.document.write(`<html dir=rtl><meta charset=utf-8><body style="font-family:Arial;padding:25px"><h2>🧺 مغسلة حميد</h2><p>رقم الطلب: ${o.id}</p><p>الزبون: ${esc(o.name)}</p><p>الهاتف: ${esc(o.phone)}</p><p>النوع: ${esc(o.type)}</p><p>التاريخ: ${o.orderDate}</p><p>الإجمالي: ${m(o.total)}</p><p>المدفوع: ${m(o.paid)}</p><p>المتبقي: ${m(o.balance)}</p><p>الحالة: ${esc(o.status)}</p><button onclick=print()>🖨️ طباعة</button></body></html>`);w.document.close()}
-function excel(){let s=stats(),h=`<html><meta charset=utf-8><body dir=rtl><h2>مغسلة حميد - التقرير الأسبوعي</h2><p>${di(s.w.s)} إلى ${di(s.w.e)}</p><table border=1><tr><th>رقم</th><th>الزبون</th><th>الهاتف</th><th>النوع</th><th>التاريخ</th><th>الوزن</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th><th>الحالة</th></tr>`+s.a.map(o=>`<tr><td>${o.id}</td><td>${esc(o.name)}</td><td>${esc(o.phone)}</td><td>${esc(o.type)}</td><td>${o.orderDate}</td><td>${o.w}</td><td>${m(o.total)}</td><td>${m(o.paid)}</td><td>${m(o.balance)}</td><td>${esc(o.status)}</td></tr>`).join("")+`</table><br><table border=1><tr><th>إجمالي المبيعات</th><th>المدفوع</th><th>غير المدفوع</th><th>الزبائن</th><th>الطلبات</th></tr><tr><td>${m(s.s)}</td><td>${m(s.p)}</td><td>${m(s.d)}</td><td>${s.c}</td><td>${s.a.length}</td></tr></table></body></html>`;download(h,"تقرير-مغسلة-حميد.xls","application/vnd.ms-excel")}
+function excel(){
+  const s=stats();
+  const rows=[
+    ["مغسلة حميد - التقرير الأسبوعي"],
+    ["الفترة",di(s.w.s),di(s.w.e)],
+    [],
+    ["رقم الطلب","الزبون","الهاتف","النوع","التاريخ","الوزن (كغ)","الإجمالي","المدفوع","المتبقي","الحالة"]
+  ];
+  s.a.forEach(o=>rows.push([o.id,o.name,o.phone,o.type,o.orderDate,o.w,o.total,o.paid,o.balance,o.status]));
+  rows.push([]);
+  rows.push(["ملخص"]);
+  rows.push(["إجمالي المبيعات",s.s]);
+  rows.push(["المدفوع",s.p]);
+  rows.push(["غير المدفوع",s.d]);
+  rows.push(["عدد الزبائن",s.c]);
+  rows.push(["عدد الطلبات",s.a.length]);
+
+  // Excel 2003 SpreadsheetML: a genuine Excel workbook XML format.
+  const cell=v=>`<Cell><Data ss:Type="${typeof v==="number"&&isFinite(v)?"Number":"String"}">${xml(v)}</Data></Cell>`;
+  const row=r=>`<Row>${r.map(cell).join("")}</Row>`;
+  const xmlbook=`<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Worksheet ss:Name="التقرير الأسبوعي"><Table>${rows.map(row).join("")}</Table></Worksheet>
+</Workbook>`;
+  download("\ufeff"+xmlbook,"تقرير-مغسلة-حميد.xls","application/vnd.ms-excel;charset=utf-8");
+  toast("تم إنشاء ملف Excel ✅");
+}
+function xml(v){
+  return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;");
+}
 function download(x,n,t){let a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+x],{type:t}));a.download=n;a.click()}
 function backup(){download(JSON.stringify({version:8,orders},null,2),"نسخة-مغسلة-حميد.json","application/json")}
 function toast(x){$("toast").textContent=x;$("toast").style.display="block";setTimeout(()=>$("toast").style.display="none",1800)}
